@@ -4,15 +4,62 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class UserController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with(['komentars', 'artikels', 'role'])->get();
+        // $users = User::with(['komentars', 'artikels', 'role'])->get();
+
+        $sort = $request->json('sort', 'created_at'); // Kolom Apa yang akan diurutkan 
+
+        // ASC : Dari terkecil ke yang terbesar
+        // DESC : Dari terbesar ke yang terkeci;
+        // Jika kita gunakan di created_at amaka DESC adalah mengurutkan postingan yang paling baru
+        $order = strtoupper($request->json('order', 'DESC')); 
+        $start = $request->json('start', null); // Digunakan Untuk Pengambilan Data Mulai dari data keberapa
+        $end = $request->json('end', null); // Digunakan untuk pengambilan data akhir jadi start sampai end
+        $filters = $request->json('filters', []); // digunakan untuk mencari sesuai key dan field di database
+
+        // Dapatkan daftar field yang valid dari tabel 'users'
+        $validColumns = Schema::getColumnListing('users');
+
+        // Validasi order (hanya ASC atau DESC)
+        if (!in_array($order, ['ASC', 'DESC'])) {
+            $order = 'DESC';
+        }
+
+        // Validasi sort (jika tidak valid, gunakan default: created_at)
+        if (!in_array($sort, $validColumns)) { 
+            $sort = 'created_at';
+        }
+
+        // Query User dengan eager loading
+        $query = User::with(['komentars', 'artikels', 'role']);
+
+        // Apply filtering jika ada dan field valid
+        if (!empty($filters)) {
+            foreach ($filters as $field => $value) {
+                if (in_array($field, $validColumns)) {
+                    $query->where($field, 'LIKE', "%$value%");
+                }
+            }
+        }
+
+        // Apply sorting (hanya jika field valid)
+        $query->orderBy($sort, $order);
+
+        // Jika start dan end ada, gunakan paginasi manual
+        if (!is_null($start) && !is_null($end)) {
+            $query->skip($start)->take($end - $start);
+        }
+
+        // Ambil data
+        $users = $query->get();
 
         if($users->isEmpty()){        
             return response()->json([

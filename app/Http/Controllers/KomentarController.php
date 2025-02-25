@@ -5,15 +5,63 @@ namespace App\Http\Controllers;
 
 use App\Models\Komentar;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class KomentarController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $komentars = Komentar::with(['user', 'artikel'])->get();
+        // $komentars = Komentar::with(['user', 'artikel'])->get();
+
+        // Filter dan Search
+        $sort = $request->json('sort', 'created_at'); // Kolom Apa yang akan diurutkan 
+
+        // ASC : Dari terkecil ke yang terbesar
+        // DESC : Dari terbesar ke yang terkeci;
+        // Jika kita gunakan di created_at amaka DESC adalah mengurutkan postingan yang paling baru
+        $order = strtoupper($request->json('order', 'DESC')); 
+        $start = $request->json('start', null);
+        $end = $request->json('end', null);
+        $filters = $request->json('filters', []);
+
+        // Dapatkan daftar field yang valid dari tabel 'komentars'
+        $validColumns = Schema::getColumnListing('komentars');
+
+        // Validasi order (hanya ASC atau DESC)
+        if (!in_array($order, ['ASC', 'DESC'])) {
+            $order = 'DESC';
+        }
+
+        // Validasi sort (jika tidak valid, gunakan default: created_at)
+        if (!in_array($sort, $validColumns)) { 
+            $sort = 'created_at';
+        }
+
+        // Query Komentar dengan eager loading
+        $query = Komentar::with(['user', 'artikel']);
+
+        // Apply filtering jika ada dan field valid
+        if (!empty($filters)) {
+            foreach ($filters as $field => $value) {
+                if (in_array($field, $validColumns)) {
+                    $query->where($field, 'LIKE', "%$value%");
+                }
+            }
+        }
+
+        // Apply sorting (hanya jika field valid)
+        $query->orderBy($sort, $order);
+
+        // Jika start dan end ada, gunakan paginasi manual
+        if (!is_null($start) && !is_null($end)) {
+            $query->skip($start)->take($end - $start);
+        }
+
+        // Ambil data
+        $komentars = $query->get();
 
         if($komentars->isEmpty()){        
             return response()->json([
