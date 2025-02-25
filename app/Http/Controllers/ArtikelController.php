@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Artikel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class ArtikelController extends Controller
@@ -12,22 +13,68 @@ class ArtikelController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $artikels = Artikel::with(['user', 'tags', 'komentars', 'kategori'])->get();
+        // $artikels = Artikel::with(['user', 'tags', 'komentars', 'kategori'])->get();
 
-        if($artikels->isEmpty()){
-        
-        return response()->json([
-            'success' => false,
-            'pesan' => 'Data Artikel Kosong',
-        ], 404);
-        
-        } else {
-        return response()->json([
-            'success' => true,
-            'data' => $artikels,
-        ], 200);
+        // Filter dan Search
+        $sort = $request->query('sort', 'created_at'); // Kolom Apa yang akan diurutkan 
+
+        // ASC : Dari terkecil ke yang terbesar
+        // DESC : Dari terbesar ke yang terkeci;
+        // Jika kita gunakan di created_at amaka DESC adalah mengurutkan postingan yang paling baru
+        $order = strtoupper($request->query('order', 'DESC')); 
+        $start = $request->query('start', null);
+        $end = $request->query('end', null);
+        $filters = $request->query('filters', []);
+
+        // Dapatkan daftar field yang valid dari tabel 'artikels'
+        $validColumns = Schema::getColumnListing('artikels');
+
+        // Validasi order (hanya ASC atau DESC)
+        if (!in_array($order, ['ASC', 'DESC'])) {
+            $order = 'DESC';
+        }
+
+        // Validasi sort (jika tidak valid, gunakan default: created_at)
+        if (!in_array($sort, $validColumns)) { 
+            $sort = 'created_at';
+        }
+
+        // Query Artikel dengan eager loading
+        $query = Artikel::with(['user', 'tags', 'komentars', 'kategori']);
+
+        // Apply filtering jika ada dan field valid
+        if (!empty($filters)) {
+            foreach ($filters as $field => $value) {
+                if (in_array($field, $validColumns)) {
+                    $query->where($field, 'LIKE', "%$value%");
+                }
+            }
+        }
+
+        // Apply sorting (hanya jika field valid)
+        $query->orderBy($sort, $order);
+
+        // Jika start dan end ada, gunakan paginasi manual
+        if (!is_null($start) && !is_null($end)) {
+            $query->skip($start)->take($end - $start);
+        }
+
+        // Ambil data
+        $artikels = $query->get();
+
+        if($artikels->isEmpty()){        
+            return response()->json([
+                'success' => false,
+                'pesan' => 'Data Artikel Kosong',
+            ], 404);
+            
+            } else {
+            return response()->json([
+                'success' => true,
+                'data' => $artikels,
+            ], 200);
         }
     }
 
@@ -306,8 +353,19 @@ class ArtikelController extends Controller
             }
         }
 
-        // hapus tags_artikel berdasarkan artikel yang dihapus
-        $artikel->tags()->detach();
+        try {
+            // hapus tags_artikel berdasarkan artikel yang dihapus
+            // $artikel->tags()->detach(); // Aktifkan ini jika harus menghapus tags yang berelasi dengan artikel yang dihapus
+            // $artikel->komentars()->delete();  // Jika disuruh menghapus artikel dan komentar harus dihapus aktifkan ini
+            $deleteArtikel = $artikel->delete();
+
+        } catch(\Exception $e) {
+
+            return response()->json([
+                'success' => false, 
+                'pesan' => 'Artikel gagal Dihapus Dikarenakan Ada Data Yang Berelasi Dengannya',
+            ], 400);
+        }
 
         // Hapus Artikel
         $deleteArtikel = $artikel->delete();

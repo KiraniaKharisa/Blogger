@@ -168,8 +168,19 @@ class KategoriController extends Controller
             ], 404);
         }
 
-        // Hapus Kategori
-        $deleteKategori = $kategori->delete();
+
+        try {
+            // $kategori->artikels()->delete();  // Jika disuruh menghapus kategori dan artikelnya harus dihapus aktifkan ini
+            // Hapus Kategori
+            $deleteKategori = $kategori->delete();
+
+        } catch(\Exception $e) {
+
+            return response()->json([
+                'success' => false, 
+                'pesan' => 'Kategori gagal Dihapus Dikarenakan Ada Data Yang Berelasi Dengannya',
+            ], 400);
+        }
 
         if(!$deleteKategori) {
             // Kembalikan response sukses

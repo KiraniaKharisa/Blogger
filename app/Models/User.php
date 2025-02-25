@@ -58,7 +58,7 @@ class User extends Authenticatable
     }
 
     // One to Many dengan Role
-    public function roles() {
-        return $this->belongTo(Role::class);
+    public function role() {
+        return $this->belongsTo(Role::class);
     }
 }

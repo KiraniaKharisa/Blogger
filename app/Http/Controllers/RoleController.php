@@ -168,8 +168,20 @@ class RoleController extends Controller
             ], 404);
         }
 
-        // Hapus role
-        $deleteRole = $role->delete();
+        try {
+            // $role->users()->delete();  // Jika disuruh menghapus role dan usernya juga harus dihapus aktifkan ini
+            // Hapus role
+            $deleteRole = $role->delete();
+
+        } catch(\Exception $e) {
+
+            return response()->json([
+                'success' => false, 
+                'pesan' => 'Role gagal Dihapus Dikarenakan Ada Data Yang Berelasi Dengannya',
+            ], 400);
+        }
+
+        
 
         if($deleteRole) {
             // Kembalikan response sukses

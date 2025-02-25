@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+
 use App\Models\Komentar;
 use Illuminate\Http\Request;
 
@@ -42,14 +43,19 @@ class KomentarController extends Controller
     public function store(Request $request)
     {
         $validate = $request->validate([
-            'komentar' => 'required|min:150',
+            'komentar' => 'required',
+            'artikel_id' => 'required|exists:artikels,id',
+            'user_id' => 'required|exists:users,id',
         ],[
             'komentar.required' => 'Komentar Tidak boleh kosong',
-            'komentar.max' => 'Komentar Minimal 150 karakter'
+            'artikel_id.required' => 'Id Artikel Tidak Boleh Kosong',
+            'artikel_id.exists' => 'Id Artikel Yang Dimasukkan Tidak Ada Di Data Kami',
+            'user_id.required' => 'Id User Tidak Boleh Kosong',
+            'user_id.exists' => 'Id User Yang Dimasukkan Tidak Ada Di Data Kami',
         ]);
 
         // jika berhasil masukkan datanya ke database
-        $komentarBuat = Kategori::create($validate);
+        $komentarBuat = Komentar::create($validate);
 
         if ($komentarBuat) {
             return response()->json([
@@ -76,7 +82,7 @@ class KomentarController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => 'Data Komentar Kosong',
-            ], 200);
+            ], 404);
         } else {
             return response()->json([
                 'success' => true,
@@ -98,7 +104,55 @@ class KomentarController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        
+        $komentar = Komentar::find($id);
+        
+        if(is_null($komentar)) {
+            return response()->json([
+                'success' => true,
+                'data' => 'Data Komentar Kosong',
+            ], 404);
+        } 
+        
+        // ambil hanya field yang ada di tabel Komentar
+        $validFields = array_intersect_key($request->all(), $komentar->getAttributes()); 
+
+        // Jika tidak ada field yang cocok 
+        if (empty($validFields)) { 
+            // kirimkan pesan gagal 
+            return response()->json([
+                'success' => false,
+                'pesan' => 'Tidak Ada Kolom Yang Cocok',           
+            ], 400);
+        }
+        
+        $validate = $request->validate([
+            'komentar' => 'required',
+            'artikel_id' => 'required|exists:artikels,id',
+            'user_id' => 'required|exists:users,id',
+        ],[
+            'komentar.required' => 'Komentar Tidak boleh kosong',
+            'artikel_id.required' => 'Id Artikel Tidak Boleh Kosong',
+            'artikel_id.exists' => 'Id Artikel Yang Dimasukkan Tidak Ada Di Data Kami',
+            'user_id.required' => 'Id User Tidak Boleh Kosong',
+            'user_id.exists' => 'Id User Yang Dimasukkan Tidak Ada Di Data Kami',
+        ]);
+
+        // jika berhasil masukkan datanya ke database
+        $komentarEdit = $komentar->update($validate);
+
+        if ($komentarEdit) {
+            return response()->json([
+                'success' => true,
+                'pesan' => 'Data Berhasil Diedit',
+                'data' => $komentar,
+            ], 200);
+        } else {
+            return response()->json([
+                'success' => false,
+                'pesan' => 'Data Gagal Diedit'
+            ], 400);
+        }
     }
 
     /**

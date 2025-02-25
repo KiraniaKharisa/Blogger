@@ -168,6 +168,8 @@ class TagController extends Controller
             ], 404);
         }
 
+        // Hapus Tag Yang Berelasi Dengan Artikel Di Tabel TagArtikel
+        $tag->artikels()->detach();
         // Hapus tag
         $deleteTag = $tag->delete();
 
