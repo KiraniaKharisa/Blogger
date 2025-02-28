@@ -17,7 +17,7 @@ class AuthJWTController extends Controller
             'password' => 'required|min:8', 
             'profil' => [
                 'nullable',
-                'regex:/^data:image\/(png|jpeg|jpg|gif|webp);base64,([A-Za-z0-9+\/=]+)$/'
+                'regex:/^data:image\/(png|jpeg|jpg|gif|webp|svg);base64,([A-Za-z0-9+\/=]+)$/'
             ]
         ],[
             // masukkan pesan error kamu di sini
@@ -32,9 +32,9 @@ class AuthJWTController extends Controller
             'profil.regex' => 'Foto Harus Berbentuk PNG, JPEG, JPG, GIF, WEBP'
         ]);
 
-        
+        // Jika ia tidak mengisi profile maka berikan profile default base64
         $validate['profil'] = $request->json('profil', env('DEFAULT_PROFIL'));
-        $validate['role_id'] = 1;
+        $validate['role_id'] = 1; // default register itu role nya penulis
 
         // Simpan Gambar
         // Cek gambar ada atau tidak
@@ -43,7 +43,10 @@ class AuthJWTController extends Controller
             $imageData = $validate['profil'];
 
             // Ekstrak ekstensi gambar dari data base64
-            preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches);
+            // Preg Match : itu fungsi yang digunakan untuk melakukan pencarian pola (pattern matching) dalam sebuah string menggunakan Regular Expression (RegEx).
+            // Berarti yang ia cari adalah w+ yang ditengah, w+ adalah word atau kata, dia mencari ekstensi gambar untuk disimpan nanti sesuai ekstensi
+            preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches); // ambil ekstensi dari gambar base64
+            dd($matches);
             $extension = strtolower($matches[1] ?? 'png'); // Default ke 'png' jika tidak ditemukan
 
             // Konversi base 64 menjadi gambar
