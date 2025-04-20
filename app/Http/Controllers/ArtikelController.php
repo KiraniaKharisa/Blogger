@@ -26,6 +26,7 @@ class ArtikelController extends Controller
         $start = $request->json('start', null); // Digunakan Untuk Pengambilan Data Mulai dari data keberapa
         $end = $request->json('end', null); // Digunakan untuk pengambilan data akhir jadi start sampai end
         $filters = $request->json('filters', []); // digunakan untuk mencari sesuai key dan field di database
+        $fixfilters = $request->json('fixfilters', []); // digunakan untuk mencari sesuai key dan field di database
 
         // Dapatkan daftar field yang valid dari tabel 'artikels'
         $validColumns = Schema::getColumnListing('artikels');
@@ -48,6 +49,14 @@ class ArtikelController extends Controller
             foreach ($filters as $field => $value) {
                 if (in_array($field, $validColumns)) {
                     $query->where($field, 'LIKE', "%$value%");
+                }
+            }
+        }
+
+        if (!empty($fixfilters)) {
+            foreach ($fixfilters as $field => $value) {
+                if (in_array($field, $validColumns)) {
+                    $query->where($field, $value);
                 }
             }
         }
@@ -75,6 +84,90 @@ class ArtikelController extends Controller
                 'data' => $artikels,
             ], 200);
         }
+    }
+
+    // Filterasi Data Artikel Trending Dengan Data Comentar paling Banyak dalam 24 jam
+    public function trending(Request $request) {
+        $limit = $request->input('limit', 10);
+        $filters = $request->json('filters', []); // Filter berdasarkan key dan field di database
+
+        // Dapatkan daftar field yang valid dari tabel 'artikels'
+        $validColumns = Schema::getColumnListing('artikels');
+
+        // Query Artikel dengan eager loading dan menghitung jumlah komentar
+        $query = Artikel::with(['user', 'tags', 'komentars', 'kategori'])
+            ->withCount('komentars') // Hitung jumlah komentar
+            ->where('created_at', '>=', now()->subDay()); // Hanya artikel dalam 24 jam terakhir
+
+        // Apply filtering jika ada dan field valid
+        if (!empty($filters)) {
+            foreach ($filters as $field => $value) {
+                if (in_array($field, $validColumns)) {
+                    $query->where($field, 'LIKE', "%$value%");
+                }
+            }
+        }
+
+        // Urutkan komentar terbanyak
+        $query->orderBy('komentars_count', 'DESC');
+
+        // Ambil data
+        $artikels = $query->limit($limit)->get();
+
+        if ($artikels->isEmpty()) {        
+            return response()->json([
+                'success' => false,
+                'pesan' => 'Data Artikel Kosong',
+            ], 404);
+        } else {
+            return response()->json([
+                'success' => true,
+                'data' => $artikels,
+            ], 200);
+        }
+
+    }
+
+    // Ambil Data Paling Banyak Komentarnya Perbedaannya dengan trending adalah jika trending 24jam jika populer yaitu selamanya
+    public function populer(Request $request) {
+        $limit = $request->input('limit', 10);
+        $filters = $request->json('filters', []); // Filter berdasarkan key dan field di database
+
+        // Dapatkan daftar field yang valid dari tabel 'artikels'
+        $validColumns = Schema::getColumnListing('artikels');
+
+        // Query Artikel dengan eager loading dan menghitung jumlah komentar
+        $query = Artikel::with(['user', 'tags', 'komentars', 'kategori'])
+            ->withCount('komentars'); // Hitung jumlah komentar
+
+        // Apply filtering jika ada dan field valid
+        if (!empty($filters)) {
+            foreach ($filters as $field => $value) {
+                if (in_array($field, $validColumns)) {
+                    $query->where($field, 'LIKE', "%$value%");
+                }
+            }
+        }
+
+
+        // Urutkan berdasarkan komentar terbanyak
+        $query->orderBy('komentars_count', 'DESC');
+
+        // Ambil data
+        $artikels = $query->limit($limit)->get();
+
+        if ($artikels->isEmpty()) {        
+            return response()->json([
+                'success' => false,
+                'pesan' => 'Data Artikel Kosong',
+            ], 404);
+        } else {
+            return response()->json([
+                'success' => true,
+                'data' => $artikels,
+            ], 200);
+        }
+
     }
 
     /**
@@ -184,7 +277,7 @@ class ArtikelController extends Controller
 
         if(is_null($artikel)){    
             return response()->json([
-                'success' => true,
+                'success' => false,
                 'data' => 'Data Artikel Kosong',
             ], 404);
             
@@ -239,7 +332,7 @@ class ArtikelController extends Controller
             'tags' => 'required|array|min:1',
             'tags.*' => 'exists:tags,id',
             'banner' => [
-                'required',
+                'nullable',
                 'regex:/^data:image\/(png|jpeg|jpg|gif|webp);base64,([A-Za-z0-9+\/=]+)$/'
             ]
         ],[
@@ -263,7 +356,7 @@ class ArtikelController extends Controller
 
         // Simpan Gambar
         // Cek gambar ada atau tidak
-        if($request->has('banner')) {
+        if($request->has('banner') && $request->json('banner') != null) {
             // Ambil Base64 Siman Sebagai Variabel
             $imageData = $validate['banner'];
 
@@ -299,10 +392,7 @@ class ArtikelController extends Controller
 
             $validate['banner'] = $saveFile;
         } else {
-            return response()->json([
-                'success' => false,
-                'pesan' => 'Banner Wajib Diisi',
-                ], 422);
+            $validate['banner'] = $artikel->banner; // Jika tidak ada gambar baru, gunakan gambar lama
         }
 
         // jika berhasil masukkan datanya ke database
@@ -342,20 +432,10 @@ class ArtikelController extends Controller
             
         }
 
-        $artikelBannerDelete = $this->deleteImage($artikel->banner);
-        if(is_array($artikelBannerDelete)) {
-            if(!$artikelBannerDelete['success']) {
-                return response()->json([
-                    'success' => false,
-                    'pesan' => 'Hapus Image Error',
-                    ], 500);
-            }
-        }
-
         try {
             // hapus tags_artikel berdasarkan artikel yang dihapus
-            // $artikel->tags()->detach(); // Aktifkan ini jika harus menghapus tags yang berelasi dengan artikel yang dihapus
-            // $artikel->komentars()->delete();  // Jika disuruh menghapus artikel dan komentar harus dihapus aktifkan ini
+            $artikel->tags()->detach(); // Aktifkan ini jika harus menghapus tags yang berelasi dengan artikel yang dihapus
+            $artikel->komentars()->delete();  // Jika disuruh menghapus artikel dan komentar harus dihapus aktifkan ini
             $deleteArtikel = $artikel->delete();
 
         } catch(\Exception $e) {
@@ -367,9 +447,17 @@ class ArtikelController extends Controller
         }
 
         // Hapus Artikel
-        $deleteArtikel = $artikel->delete();
+        // $deleteArtikel = $artikel->delete();
 
         if($deleteArtikel) {
+            $artikelBannerDelete = $this->deleteImage($artikel->banner);
+            if(!$artikelBannerDelete) {
+                return response()->json([
+                    'success' => false,
+                    'pesan' => 'Hapus Image Error',
+                    ], 500);
+            }
+
             // Kembalikan response sukses
             return response()->json([
                 'success' => true,

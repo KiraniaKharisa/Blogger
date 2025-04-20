@@ -75,6 +75,69 @@ class UserController extends Controller
         }
     }
 
+    public function getPenulis(Request $request) {
+        // $users = User::with(['komentars', 'artikels', 'role'])->get();
+
+        $sort = $request->json('sort', 'created_at'); // Kolom Apa yang akan diurutkan 
+
+        // ASC : Dari terkecil ke yang terbesar
+        // DESC : Dari terbesar ke yang terkeci;
+        // Jika kita gunakan di created_at amaka DESC adalah mengurutkan postingan yang paling baru
+        $order = strtoupper($request->json('order', 'DESC')); 
+        $start = $request->json('start', null); // Digunakan Untuk Pengambilan Data Mulai dari data keberapa
+        $end = $request->json('end', null); // Digunakan untuk pengambilan data akhir jadi start sampai end
+        $filters = $request->json('filters', []); // digunakan untuk mencari sesuai key dan field di database
+
+        // Dapatkan daftar field yang valid dari tabel 'users'
+        $validColumns = Schema::getColumnListing('users');
+
+        // Validasi order (hanya ASC atau DESC)
+        if (!in_array($order, ['ASC', 'DESC'])) {
+            $order = 'DESC';
+        }
+
+        // Validasi sort (jika tidak valid, gunakan default: created_at)
+        if (!in_array($sort, $validColumns)) { 
+            $sort = 'created_at';
+        }
+
+        // Query User dengan eager loading
+        $query = User::with(['artikels'])->select(['id', 'name']);
+
+        // Apply filtering jika ada dan field valid
+        if (!empty($filters)) {
+            foreach ($filters as $field => $value) {
+                if (in_array($field, $validColumns)) {
+                    $query->where($field, 'LIKE', "%$value%");
+                }
+            }
+        }
+
+        // Apply sorting (hanya jika field valid)
+        $query->orderBy($sort, $order);
+
+        // Jika start dan end ada, gunakan paginasi manual
+        if (!is_null($start) && !is_null($end)) {
+            $query->skip($start)->take($end - $start);
+        }
+
+        // Ambil data
+        $users = $query->get();
+
+        if($users->isEmpty()){        
+            return response()->json([
+                'success' => false,
+                'pesan' => 'Data User Kosong',
+            ], 404);
+            
+            } else {
+            return response()->json([
+                'success' => true,
+                'data' => $users,
+            ], 200);
+        }
+    }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -230,7 +293,7 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email,' . $id,
             'role_id' => 'required|exists:roles,id',
             'profil' => [
-                'required',
+                'nullable',
                 'regex:/^data:image\/(png|jpeg|jpg|gif|webp);base64,([A-Za-z0-9+\/=]+)$/'
             ]
         ],[
@@ -249,7 +312,7 @@ class UserController extends Controller
 
         // Simpan Gambar
         // Cek gambar ada atau tidak
-        if($request->has('profil')) {
+        if($request->has('profil') && $request->json('profil') != null) {
             // Ambil Base64 Siman Sebagai Variabel
             $imageData = $validate['profil'];
 
@@ -284,11 +347,6 @@ class UserController extends Controller
             }
 
             $validate['profil'] = $saveFile;
-        } else {
-            return response()->json([
-                'success' => false,
-                'pesan' => 'Profil Wajib Diisi',
-                ], 422);
         }
 
         // jika berhasil masukkan datanya ke database
@@ -317,23 +375,13 @@ class UserController extends Controller
     public function destroy(string $id)
     {
         $user = User::find($id);
-
+        
         if(is_null($user)){    
             return response()->json([
                 'success' => true,
                 'data' => 'Data User Kosong',
             ], 404);
             
-        }
-
-        $profilUserDelete = $this->deleteImage($user->profil);
-        if(is_array($profilUserDelete)) {
-            if(!$profilUserDelete['success']) {
-                return response()->json([
-                    'success' => false,
-                    'pesan' => 'Hapus Image Error',
-                    ], 500);
-            }
         }
 
         // Hapus User
@@ -351,7 +399,15 @@ class UserController extends Controller
         }
 
         if($deleteUser) {
-            // Kembalikan response sukses
+            $profilUserDelete = $this->deleteImage($user->profil);
+            if(!$profilUserDelete) {
+                return response()->json([
+                    'success' => false,
+                    'pesan' => 'Hapus Image Error',
+                    ], 500);
+            }
+
+            // Kembalikan response sukses  
             return response()->json([
                 'success' => true,
                 'pesan' => 'User Berhasil Dihapus',

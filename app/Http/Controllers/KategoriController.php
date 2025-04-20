@@ -227,7 +227,7 @@ class KategoriController extends Controller
             ], 400);
         }
 
-        if(!$deleteKategori) {
+        if($deleteKategori) {
             // Kembalikan response sukses
             return response()->json([
                 'success' => true,

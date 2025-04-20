@@ -46,7 +46,7 @@ class AuthJWTController extends Controller
             // Preg Match : itu fungsi yang digunakan untuk melakukan pencarian pola (pattern matching) dalam sebuah string menggunakan Regular Expression (RegEx).
             // Berarti yang ia cari adalah w+ yang ditengah, w+ adalah word atau kata, dia mencari ekstensi gambar untuk disimpan nanti sesuai ekstensi
             preg_match('/^data:image\/(\w+);base64,/', $imageData, $matches); // ambil ekstensi dari gambar base64
-            dd($matches);
+            
             $extension = strtolower($matches[1] ?? 'png'); // Default ke 'png' jika tidak ditemukan
 
             // Konversi base 64 menjadi gambar
@@ -110,25 +110,21 @@ class AuthJWTController extends Controller
 
         if (! $token = auth()->attempt($validate)) {
             return response()->json([
-                'status' => false,
+                'success' => false,
                 'pesan' => 'Data Salah Tidak Teregistrasi',
             ], 401);
         }
 
         $user = auth()->user();
         return response()->json([
+            'success' => true,
             "jwt" => $this->respondWithToken($token),
-            "user" => [
-                "name" => $user->name,
-                "email" => $user->email,
-                "role" => $user->role->role
-            ]
         ], 200);
     }
 
     public function me()
     {
-        return response()->json(auth()->user());
+        return response()->json(["user" => auth()->user()->load('role')]);
     }
 
     public function logout()
@@ -136,7 +132,7 @@ class AuthJWTController extends Controller
         auth()->logout(true);
 
         return response()->json([
-            'status' => true,
+            'success' => true,
             'pesan' => 'Berhasil Logout Terimakasih',
         ], 200);
     }

@@ -22,6 +22,8 @@ Route::middleware(['cors'])->group(function () {
 
     // Milik Artikel
     Route::get('/artikel', [ArtikelController::class, 'index']);
+    Route::get('/artikel/trending', [ArtikelController::class, 'trending']);
+    Route::get('/artikel/populer', [ArtikelController::class, 'populer']);
     Route::get('/artikel/{artikel}', [ArtikelController::class, 'show']);
 
 
@@ -39,8 +41,13 @@ Route::middleware(['cors'])->group(function () {
     Route::get('/tag', [TagController::class, 'index']);
     Route::get('/tag/{tag}', [TagController::class, 'show']);
 
+    // Milik Get Penulis
+    Route::get('/user/penulis', [UserController::class, 'getPenulis']);
+
     // Harus Memakai Login Bareer
     Route::middleware(['auth.jwt'])->group(function () {
+        // Milik Me/Untuk Mendapatkan Data User Yang Aktif
+        Route::post('/me', [AuthJWTController::class, 'me']);
         // Milik Logout
         Route::post('/logout', [AuthJWTController::class, 'logout']);
 
@@ -64,13 +71,14 @@ Route::middleware(['cors'])->group(function () {
         Route::put('/tag/{tag}', [TagController::class, 'update']);
         Route::delete('/tag/{tag}', [TagController::class, 'destroy']);
 
+        Route::put('/user/{user}', [UserController::class, 'update']);
+
         // Harus Admin
         Route::middleware(['cekRole:admin'])->group(function () {
             // Routes untuk User
             Route::get('/user', [UserController::class, 'index']);
             Route::post('/user', [UserController::class, 'store']);
             Route::get('/user/{user}', [UserController::class, 'show']);
-            Route::put('/user/{user}', [UserController::class, 'update']);
             Route::delete('/user/{user}', [UserController::class, 'destroy']);
 
             // Routes untuk Role
@@ -84,25 +92,3 @@ Route::middleware(['cors'])->group(function () {
     });
 });
 
-
-// Routes untuk TagArtikel : Jika Dipake Uncomment Aja
-// Route::get('/tag_artikel', [TagArtikelController::class, 'index']);
-// Route::post('/tag_artikel', [TagArtikelController::class, 'store']);
-// Route::get('/tag_artikel/{tag_artikel}', [TagArtikelController::class, 'show']);
-// Route::put('/tag_artikel/{tag_artikel}', [TagArtikelController::class, 'update']);
-// Route::delete('/tag_artikel/{tag_artikel}', [TagArtikelController::class, 'destroy']);
-
-
-// Route::resource('/user', UserController::class)->except(['create', 'edit'])->middleware(['auth.jwt', 'cekRole:admin']);
-
-// Route::resource('/artikel', ArtikelController::class)->except(['create', 'edit']);
-
-// Route::resource('/kategori', KategoriController::class)->except(['create', 'edit']);
-
-// Route::resource('/komentar', KomentarController::class)->except(['create', 'edit']);
-
-// Route::resource('/role', RoleController::class)->except(['create', 'edit']);
-
-// Route::resource('/tag', TagController::class)->except(['create', 'edit']);
-
-// Route::resource('/tag_artikel', TagArtikelController::class)->except(['create', 'edit']);

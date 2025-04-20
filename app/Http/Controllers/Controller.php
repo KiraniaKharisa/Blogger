@@ -7,16 +7,17 @@ use Illuminate\Support\Facades\File;
 abstract class Controller
 {
     public function deleteImage($fileOld) {
-        $fileOld = public_path($fileOld);;
+        $fileOld = public_path($fileOld);
         if($fileOld && File::exists($fileOld)) {
             File::delete($fileOld);
+            return true;
         } else {
             return false;
         }
     }
     public function uploudImage($imageData, $extension, $pathSave, $oldImage = null) {
         if($oldImage != null) {
-            if($this->deleteImage($oldImage)) {
+            if(!$this->deleteImage($oldImage)) {
                 return response()->json([
                     'success' => false,
                     'pesan' => 'Image Lama Tidak Ada',
