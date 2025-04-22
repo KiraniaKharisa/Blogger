@@ -16,13 +16,14 @@ class ArtikelController extends Controller
     public function index(Request $request)
     {
         // $artikels = Artikel::with(['user', 'tags', 'komentars', 'kategori'])->get();
+
         // Filter dan Search
         $sort = $request->json('sort', 'created_at'); // Kolom Apa yang akan diurutkan 
 
         // ASC : Dari terkecil ke yang terbesar
         // DESC : Dari terbesar ke yang terkeci;
         // Jika kita gunakan di created_at amaka DESC adalah mengurutkan postingan yang paling baru
-        $order = strtoupper($request->json('order', 'DESC')); 
+        $order = strtoupper($request->json('order', 'DESC')); // strtoupper digunakan untuk mengubah huruf menjadi kapital semua
         $start = $request->json('start', null); // Digunakan Untuk Pengambilan Data Mulai dari data keberapa
         $end = $request->json('end', null); // Digunakan untuk pengambilan data akhir jadi start sampai end
         $filters = $request->json('filters', []); // digunakan untuk mencari sesuai key dan field di database

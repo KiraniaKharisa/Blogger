@@ -11,10 +11,6 @@ use App\Http\Controllers\KategoriController;
 use App\Http\Controllers\KomentarController;
 use App\Http\Controllers\TagArtikelController;
 
-// Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
-//     return $request->user();
-// });
-
 Route::middleware(['cors'])->group(function () {
     Route::post('/register', [AuthJWTController::class, 'register']);
     Route::post('/login', [AuthJWTController::class, 'login']);
